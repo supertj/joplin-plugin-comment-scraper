@@ -62,6 +62,20 @@ describe('parseExport', () => {
 		expect(csv[1]!.title).toBe('Show HN: A tiny thing: with "quotes" / slashes?');
 	});
 
+	it('keeps a thread that appears twice in a batch as two threads', () => {
+		// A batch is built from open tabs, so the same thread can be exported twice in one file.
+		const rows = fixture('batch.csv').trimEnd().split('\r\n');
+		const csv = [...rows, ...rows.filter((row) => row.startsWith('1,reddit,'))].join('\r\n') + '\r\n';
+		const flat = JSON.parse(fixture('batch-flat.json'));
+		flat.threads.push(flat.threads[0]);
+		for (const text of [csv, JSON.stringify(flat)]) {
+			const { threads, skipped } = parseExport(text);
+			expect(skipped).toBe(0);
+			expect(threads.map((thread) => `${thread.source}:${thread.comments.length}`)).toEqual(['reddit:11', 'hn:3', 'reddit:11']);
+			expect(threads[2]).toEqual(threads[0]);
+		}
+	});
+
 	it('takes the formula guard off CSV text cells and keeps negative scores', () => {
 		const header = 'schema_version,source,record_type,thread_id,thread_title,subreddit,comment_id,parent_id,parent_missing,depth,score,score_hidden,created_utc,edited_utc,is_op,comment_state,body,permalink,task_state,fetch_path,fetched_at';
 		const csv = [

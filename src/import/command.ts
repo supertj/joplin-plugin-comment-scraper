@@ -1,6 +1,10 @@
 import type Joplin from 'api/Joplin';
 import { ToastType } from 'api/types';
-import { importChosenFiles, NOTEBOOK_TITLE } from './import-files';
+import { importChosenFiles, NOTEBOOK_TITLE, type ImportResult } from './import-files';
+
+// Imports run one after another. Two at once (the command run again before the first is done)
+// could each find no Comment Scraper notebook and both create one.
+let previousImport: Promise<unknown> = Promise.resolve();
 
 /**
  * Asks for export files, imports them and says how it went. The files picked here are the only
@@ -15,7 +19,9 @@ export async function importFromFileDialog(joplin: Joplin): Promise<void> {
 
 	const fs = joplin.require('fs-extra');
 	const files = paths.map((path) => ({ name: fileName(path), text: (): Promise<string> => fs.readFile(path, 'utf8') }));
-	const { noteIds, problems } = await importChosenFiles(joplin.data, files);
+	const thisImport: Promise<ImportResult> = previousImport.then(() => importChosenFiles(joplin.data, files));
+	previousImport = thisImport.catch(() => undefined);
+	const { noteIds, problems } = await thisImport;
 
 	if (noteIds.length > 0) await joplin.commands.execute('openNote', noteIds[0]);
 	const imported = `Imported ${noteIds.length} ${noteIds.length === 1 ? 'thread' : 'threads'} into the ${NOTEBOOK_TITLE} notebook.`;

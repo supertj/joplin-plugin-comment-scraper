@@ -128,6 +128,13 @@ function jsonRecord(row: unknown): ExportRecord | null {
 	};
 }
 
+interface CsvGroup {
+	records: ExportRecord[];
+	fetchedAt: string;
+	damaged: boolean;
+	hasPost: boolean;
+}
+
 function parseCsvExport(text: string): ParsedExport {
 	const { rows: [header = [], ...rows], unterminated } = parseCsvRows(text);
 	const columns = new Map(header.map((name, index) => [name.trim(), index]));
@@ -135,7 +142,8 @@ function parseCsvExport(text: string): ParsedExport {
 		throw new NotAnExportError('not a Comment Scraper CSV export');
 	}
 	// A batch export puts several threads in one file, one after another.
-	const groups = new Map<string, { records: ExportRecord[]; fetchedAt: string; damaged: boolean }>();
+	const groups: CsvGroup[] = [];
+	const latestGroup = new Map<string, CsvGroup>();
 	for (const [index, row] of rows.entries()) {
 		if (row.length === 1 && row[0] === '') continue;
 		const cell = (name: string): string => {
@@ -145,8 +153,15 @@ function parseCsvExport(text: string): ParsedExport {
 		const source = cell('source');
 		const recordType = cell('record_type');
 		const key = `${source}:${cell('thread_id')}`;
-		const group = groups.get(key) ?? { records: [], fetchedAt: cell('fetched_at'), damaged: false };
-		groups.set(key, group);
+		let group = latestGroup.get(key);
+		// The same thread can be in a batch twice (open in two tabs). Its second post row starts
+		// a second thread instead of piling both copies into one.
+		if (!group || (recordType === 'post' && group.hasPost)) {
+			group = { records: [], fetchedAt: cell('fetched_at'), damaged: false, hasPost: false };
+			groups.push(group);
+			latestGroup.set(key, group);
+		}
+		if (recordType === 'post') group.hasPost = true;
 		// Every row the extension writes has a cell for every column. A short or long row means
 		// the file was cut off or edited, and its comment can't be trusted to be whole.
 		const cutOff = unterminated && index === rows.length - 1;
@@ -176,7 +191,7 @@ function parseCsvExport(text: string): ParsedExport {
 	}
 	const threads: Thread[] = [];
 	let skipped = 0;
-	for (const { records, fetchedAt, damaged } of groups.values()) {
+	for (const { records, fetchedAt, damaged } of groups) {
 		const thread = damaged ? null : buildThread(records, fetchedAt);
 		if (thread) threads.push(thread);
 		else skipped++;

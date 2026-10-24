@@ -7,10 +7,17 @@ import { importFromFileDialog } from '../src/import/command';
 const fixturePath = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 
 /** The parts of the plugin API the command uses, recording what it was asked to do. */
-function fakeJoplin(pickedPaths: string[] | null) {
+const defaultData = () => {
+	let notes = 0;
+	return {
+		get: async () => ({ items: [], has_more: false }),
+		post: async (path: string[]) => ({ id: path[0] === 'folders' ? 'folder1' : `note${++notes}` }),
+	};
+};
+
+function fakeJoplin(pickedPaths: string[] | null, data: unknown = defaultData()) {
 	const shown: string[] = [];
 	const read: string[] = [];
-	let notes = 0;
 	const joplin = {
 		views: {
 			dialogs: {
@@ -36,10 +43,7 @@ function fakeJoplin(pickedPaths: string[] | null) {
 				},
 			};
 		},
-		data: {
-			get: async () => ({ items: [], has_more: false }),
-			post: async (path: string[]) => ({ id: path[0] === 'folders' ? 'folder1' : `note${++notes}` }),
-		},
+		data,
 		commands: {
 			execute: async (command: string, ...args: unknown[]) => {
 				shown.push(`command ${command} ${args.join(' ')}`);
@@ -80,6 +84,29 @@ describe('importFromFileDialog', () => {
 			'command openNote note1',
 			'message box: Imported 2 threads into the Comment Scraper notebook. Not everything was imported:\nbatch-flat.reddit.md: not a Comment Scraper JSON or CSV export.',
 		]);
+	});
+
+	it('runs imports one at a time, so a second import uses the notebook the first one made', async () => {
+		// A data API that yields between calls, so two imports would interleave if allowed to.
+		const folders: { id: string; title: string; parent_id: string }[] = [];
+		const tick = () => new Promise((resolve) => setTimeout(resolve, 1));
+		const data = {
+			get: async () => {
+				await tick();
+				return { items: [...folders], has_more: false };
+			},
+			post: async (path: string[], _query: unknown, body: { title: string }) => {
+				await tick();
+				if (path[0] !== 'folders') return { id: 'note' };
+				const folder = { id: `folder${folders.length + 1}`, title: body.title, parent_id: '' };
+				folders.push(folder);
+				return folder;
+			},
+		};
+		const first = fakeJoplin([fixturePath('batch.csv')], data);
+		const second = fakeJoplin([fixturePath('batch-flat.json')], data);
+		await Promise.all([importFromFileDialog(first.joplin), importFromFileDialog(second.joplin)]);
+		expect(folders).toHaveLength(1);
 	});
 
 	it('says so when nothing was imported', async () => {
