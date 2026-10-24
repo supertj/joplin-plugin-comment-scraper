@@ -1,0 +1,17 @@
+{
+	"manifest_version": 1,
+	"id": "com.comment-scraper.import",
+	"app_min_version": "3.7",
+	"version": "1.0.0",
+	"name": "Comment Scraper Import",
+	"description": "Import Reddit and Hacker News threads exported by the Comment Scraper browser extension as notes, with comment numbers, nested replies, times, links and scores where available.",
+	"author": "Super Lede",
+	"homepage_url": "https://comment-scraper.com/",
+	"repository_url": "https://github.com/supertj/joplin-plugin-comment-scraper",
+	"keywords": ["joplin-plugin", "comment scraper", "reddit", "hacker news", "import", "csv", "json"],
+	"categories": ["files"],
+	"platforms": ["desktop"],
+	"screenshots": [],
+	"icons": {},
+	"promo_tile": {}
+}

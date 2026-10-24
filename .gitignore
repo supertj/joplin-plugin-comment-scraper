@@ -1,0 +1,9 @@
+dist/
+node_modules/
+publish/
+
+# macOS
+.DS_Store
+
+# cross-review output
+.review/
