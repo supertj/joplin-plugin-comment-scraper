@@ -2,7 +2,7 @@
 
 A Joplin plugin that turns Reddit and Hacker News threads exported with Comment Scraper into notes. Each thread becomes one note: the post at the top, then every comment with its number, score, time and a link back to it, quoted inside the comment it replies to.
 
-[Comment Scraper](https://comment-scraper.com/) is a Chrome and Edge extension that saves a whole thread as CSV, JSON or Markdown. This plugin reads the CSV and JSON files.
+[Comment Scraper](https://comment-scraper.com/) is a Chrome and Edge extension that saves a whole thread as CSV, JSON, Markdown or Org. This plugin reads the CSV and JSON files.
 
 ## Install
 
