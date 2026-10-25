@@ -7,8 +7,8 @@ import type { ExportRecord, Thread } from './types';
 // raw HTML and loads remote images in notes, and plugins can act on note text: some render
 // fenced blocks that name a language (```mermaid and the like), others look at a note's first
 // line. So post and comment bodies go into code blocks they can't close and that name no
-// language, the note always starts with a line written here, and links, times and names are
-// rebuilt from checked values instead of copied.
+// language a renderer acts on (only "text", see fencedText), the note always starts with a line
+// written here, and links, times and names are rebuilt from checked values instead of copied.
 
 /**
  * Deeper replies stay at this level. Past six or so, nested quotes get too narrow to read,
@@ -156,15 +156,17 @@ function bodyLines(record: ExportRecord): string[] {
 
 /**
  * The text as a plain code block it can't break out of: the fence is longer than any run of
- * backticks inside, and it names no language for a renderer or plugin to pick up. Inside,
- * Joplin shows the text as it is, with no HTML, images, links or math. The cost is that
- * Reddit's own formatting (bold, lists, links) shows as plain text.
+ * backticks inside. It's marked "text", highlight.js's plain-text language: with no language
+ * at all, Joplin guesses one and colours words like "of" and "where" as keywords (seen in
+ * Joplin 3.7, 2026-10-25), and no renderer plugin claims "text". Inside, Joplin shows the
+ * text as it is, with no HTML, images, links or math. The cost is that Reddit's own
+ * formatting (bold, lists, links) shows as plain text.
  */
 export function fencedText(text: string): string[] {
 	let longestRun = 0;
 	for (const run of text.match(/`+/g) ?? []) longestRun = Math.max(longestRun, run.length);
 	const fence = '`'.repeat(Math.max(3, longestRun + 1));
-	return [fence, ...text.split('\n'), fence];
+	return [`${fence}text`, ...text.split('\n'), fence];
 }
 
 function quotePrefix(level: number): string {

@@ -111,26 +111,26 @@ describe('threadToNoteBody', () => {
 				'- Comments in this export: 4',
 				'',
 				'> **Post** · 120 points · 2026-10-01 08:30 UTC · [link](https://www.reddit.com/r/test/comments/p1/is_it_worth_it/)',
-				'> ```',
+				'> ```text',
 				'> Thinking about it.',
 				'> ```',
 				'',
 				'## Comments',
 				'',
 				'> **[c1]** · 41 points · 2026-10-01 08:30 UTC · edited · [link](https://www.reddit.com/r/test/comments/p1/_/a/)',
-				'> ```',
+				'> ```text',
 				'> Text of a',
 				'> ```',
 				'>',
 				'> > **[c2]** · 1 point · 2026-10-01 08:30 UTC · OP · [link](https://www.reddit.com/r/test/comments/p1/_/b/)',
-				'> > ```',
+				'> > ```text',
 				'> > First line',
 				'> >',
 				'> > Second line',
 				'> > ```',
 				'>',
 				'> > **[c3]** · score hidden · 2026-10-01 08:30 UTC · [link](https://www.reddit.com/r/test/comments/p1/_/c/)',
-				'> > ```',
+				'> > ```text',
 				'> > Text of c',
 				'> > ```',
 				'',
@@ -163,14 +163,14 @@ describe('threadToNoteBody', () => {
 		expect(note).toContain('> > > > **[c7]** · 10 points · 2026-09-21 14:15 UTC · [link](https://www.reddit.com/r/testsub/comments/1abcxyz/title/c11/)');
 		expect(note).toContain('> **[c8]** · 10 points · 2026-09-21 14:13 UTC · [link](https://www.reddit.com/r/testsub/comments/1abcxyz/title/c6/)\n> *(removed)*');
 		// A heading line in the post stays plain text inside the post's code block.
-		expect(note).toContain('> ```\n> Looking for honest takes.\n> # not a heading\n> ```');
+		expect(note).toContain('> ```text\n> Looking for honest takes.\n> # not a heading\n> ```');
 		expect(renderedDepths(note)).toEqual(['[c1]:1', '[c2]:2', '[c3]:2', '[c4]:1', '[c5]:2', '[c6]:3', '[c7]:4', '[c8]:1', '[c9]:1', '[c10]:1', '[c11]:2']);
 
 		// Hacker News has no comment scores and no subreddit.
 		const hnNote = threadToNoteBody(hn!);
 		expect(hnNote).toContain('- Source: Hacker News · [original thread](https://news.ycombinator.com/item?id=1)\n');
-		expect(hnNote).toContain('> **Post** · 50 points · 2026-09-21 14:13 UTC · [link](https://news.ycombinator.com/item?id=1)\n> ```\n> https://x.dev');
-		expect(hnNote).toContain('> > **[c2]** · 2026-09-21 14:16 UTC · OP · [link](https://news.ycombinator.com/item?id=3)\n> > ```\n> > Thanks');
+		expect(hnNote).toContain('> **Post** · 50 points · 2026-09-21 14:13 UTC · [link](https://news.ycombinator.com/item?id=1)\n> ```text\n> https://x.dev');
+		expect(hnNote).toContain('> > **[c2]** · 2026-09-21 14:16 UTC · OP · [link](https://news.ycombinator.com/item?id=3)\n> > ```text\n> > Thanks');
 	});
 
 	it('numbers comments the way the extension does in its Markdown export', () => {
@@ -217,7 +217,7 @@ describe('threadToNoteBody', () => {
 
 	it('keeps leading spaces on the first line of a comment', () => {
 		const note = threadToNoteBody(thread([comment('a', 'p1', { body: '\n\n    indented code\nprose' })]));
-		expect(note).toContain('> ```\n>     indented code\n> prose\n> ```');
+		expect(note).toContain('> ```text\n>     indented code\n> prose\n> ```');
 	});
 });
 
@@ -234,7 +234,8 @@ describe('untrusted text', () => {
 			if (token.type === 'html_block' || token.type === 'html_inline') return [`html ${token.content}`];
 			if (token.type === 'image') return ['image'];
 			if (token.type === 'code_inline') return [`inline code ${token.content}`];
-			if (token.type === 'fence' && token.info !== '') return [`fence info ${token.info}`];
+			// Every block the plugin writes is marked text, and only that (see fencedText).
+			if (token.type === 'fence' && token.info !== 'text') return [`fence info ${token.info}`];
 			if (token.type === 'link_open' && !links.has(token.attrGet('href'))) return [`link ${token.attrGet('href')}`];
 			// Joplin turns $...$ into math, and plugins read [[...]] as note links.
 			if (token.type === 'text' && /\$|\[\[/.test(token.content)) return [`text ${token.content}`];
@@ -274,9 +275,9 @@ describe('untrusted text', () => {
 	}
 
 	it('uses a fence longer than any backtick run in the text', () => {
-		expect(fencedText('a ``` b')[0]).toBe('````');
-		expect(fencedText('`````')[0]).toBe('``````');
-		expect(fencedText('plain')[0]).toBe('```');
+		expect(fencedText('a ``` b')[0]).toBe('````text');
+		expect(fencedText('`````')[0]).toBe('``````text');
+		expect(fencedText('plain')[0]).toBe('```text');
 	});
 
 	it('only links to web addresses, and an address cannot start new lines', () => {
